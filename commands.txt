@@ -1,0 +1,2 @@
+SSL keygen:
+    keytool -genkeypair -alias ripple_ssl -keyalg RSA -keysize 2048 -storetype PKCS12 -keystore ripple-ssl.p12 -validity 730 -ext san=dns:ripple.api.com
