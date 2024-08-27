@@ -1,0 +1,24 @@
+services:
+  db-dev:
+    image: postgres:latest
+    container_name: ripple_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - ./apps/postgres:/var/lib/postgresql/data
+    environment:
+      POSTGRES_DB: ripple-db
+      POSTGRES_USER: user
+      POSTGRES_PASSWORD: password
+  mongo-db:
+    image: mongo:latest
+    container_name: chat_db
+    environment:
+      MONGO_INITDB_DATABASE: chat-db
+      MONGO_INITDB_ROOT_USERNAME: user
+      MONGO_INITDB_ROOT_PASSWORD: password
+    ports:
+      - "27017:27017"
+    volumes:
+      - ./apps/mongo:/var/lib/mongo/data
+      - ./init-mongo.js:/docker-entrypoint-initdb.d/init-mongo-js:ro
