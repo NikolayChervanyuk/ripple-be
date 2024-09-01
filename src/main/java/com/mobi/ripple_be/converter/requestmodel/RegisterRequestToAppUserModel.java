@@ -14,7 +14,7 @@ public class RegisterRequestToAppUserModel extends BaseConverter<RegisterRequest
         return AppUserModel.builder()
                 .fullName(source.getFullName())
                 .email(source.getEmail())
-                .username(source.getUsername())
+                .username(source.getUsername().toLowerCase())
                 .password(source.getPassword())
                 .followers(0L)
                 .following(0L)

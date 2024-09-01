@@ -15,22 +15,27 @@ import java.util.UUID;
 @Repository
 public interface UserRepository extends R2dbcRepository<AppUser, UUID> {
 
-    Mono<AppUser> findByUsername(String username);
-    Mono<AppUserView> findAppUserViewByUsername(String username);
+    Mono<AppUser> getByUsername(String username);
 
-    Flux<AppUserView> findUserViewById(UUID userId);
+    Mono<AppUserView> getAppUserViewByUsername(String username);
+
+    Mono<AppUserView> getAppUserViewById(UUID userId);
+
+    @Query("SELECT * FROM app_user AS u " +
+            "WHERE u.id != :currentUserId AND " +
+            "u.username = :username")
+    Mono<AppUserView> getOtherAppUserViewByUsername(UUID currentUserId, String username);
+
+    @Query("SELECT * FROM app_user AS u " +
+            "WHERE u.id != :currentUserId AND " +
+            "u.email = :email")
+    Mono<AppUserView> getOtherAppUserViewByEmail(UUID currentUserId, String email);
 
     @Query("SELECT * FROM app_user AS u WHERE u.username = $1")
     Mono<AppUserCredentialsView> getUserCredentialsByUsername(String username);
 
     @Query("SELECT * FROM app_user AS u WHERE u.email = $1")
     Mono<AppUserCredentialsView> getUserCredentialsByEmail(String email);
-
-    Mono<AppUser> getAppUserByUsername(String username);
-
-    Mono<AppUserView> getAppUserViewByUsername(String username);
-
-    Mono<AppUserView> getAppUserViewById(UUID userId);
 
     @Query("SELECT * FROM app_user AS u " +
             "JOIN chat_user AS cu ON u.id = cu.user_id " +
@@ -48,5 +53,4 @@ public interface UserRepository extends R2dbcRepository<AppUser, UUID> {
     @Modifying
     @Query("UPDATE app_user SET last_issued_token_revocation = current_timestamp WHERE username = $1")
     Mono<Boolean> issueTokenRevocationForUser(String username);
-
 }

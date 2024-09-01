@@ -1,15 +1,17 @@
-server:
-  port: 443
-  ssl:
-    enabled: true
-    key-alias: ripple_ssl
-    key-store: classpath:ripple-ssl.p12
-    key-store-type: PKCS12
-    key-password: 123456789
-    key-store-password: 123456789
-
+#server:
+#  port: 443
+#  ssl:
+#    enabled: true
+#    key-alias: ripple_ssl
+#    key-store: classpath:ripple-ssl.p12
+#    key-store-type: PKCS12
+#    key-password: 123456789
+#    key-store-password: 123456789
 
 spring:
+  webflux:
+    multipart:
+      max-in-memory-size: 10MB
   r2dbc:
     url: r2dbc:postgresql://localhost:5432/ripple-db?currentSchema=public
     username: user
@@ -48,6 +50,7 @@ logging:
 ripple:
   bootstrap:
     delete-data-on-startup: false
+  key-id: id0000
   secret-key: cfe4d164f94f129845c43feaf49a205e97571d2dddbedd239ba80cec852ab4bf
   refresh-token-expiration-minutes: 525600
   access-token-expiration-minutes: 10080

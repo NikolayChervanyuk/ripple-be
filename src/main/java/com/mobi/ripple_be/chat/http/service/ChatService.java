@@ -77,7 +77,7 @@ public class ChatService {
 
     public Flux<AppUserView> getAllChatParticipants(String chatId) {
         return chatUserRepository.findAllByChatId(UUID.fromString(chatId))
-                .flatMap(chatUser -> userRepository.findUserViewById(chatUser.getUserId()));
+                .flatMap(chatUser -> userRepository.getAppUserViewById(chatUser.getUserId()));
     }
 
     public Mono<Flux<DataBuffer>> getMessageFile(String chatId, String filename) {

@@ -66,8 +66,8 @@ public class UserService {
             @NotNull final String password
     ) {
         Mono<AppUserCredentialsView> foundUser = switch (getIdentifierType(identifier)) {
-            case EMAIL -> userRepository.getUserCredentialsByEmail(identifier);
-            case USERNAME -> userRepository.getUserCredentialsByUsername(identifier);
+            case EMAIL -> userRepository.getUserCredentialsByEmail(identifier.toLowerCase());
+            case USERNAME -> userRepository.getUserCredentialsByUsername(identifier.toLowerCase());
             case PHONE_NUMBER, UNDEFINED -> Mono.empty();
         };
         return foundUser
@@ -112,21 +112,43 @@ public class UserService {
                 );
     }
 
-    public Mono<RegisterStatus> saveUser(@NotNull final AppUserModel userModel) {
+    public Mono<UserPersistenceStatus> saveUser(@NotNull final AppUserModel userModel) {
         if (!Files.isWritable(Paths.get(USER_DATA_PATH))) {
             log.error("User data path is not writable. Check permissions!");
-            return Mono.just(RegisterStatus.INTERNAL_ERROR);
+            return Mono.just(UserPersistenceStatus.INTERNAL_ERROR);
         }
         return userRepository.getUserCredentialsByUsername(userModel.getUsername())
-                .map(userView -> RegisterStatus.USERNAME_EXISTS)
+                .map(userView -> UserPersistenceStatus.USERNAME_EXISTS)
                 .switchIfEmpty(userRepository.getUserCredentialsByEmail(userModel.getEmail())
-                        .map(userView -> RegisterStatus.EMAIL_EXISTS)
+                        .map(userView -> UserPersistenceStatus.EMAIL_EXISTS)
                         .switchIfEmpty(
                                 userRepository.save(
                                         Objects.requireNonNull(conversionService.convert(userModel, AppUser.class))
-                                ).map(savedUser -> RegisterStatus.SUCCESS)
+                                ).map(savedUser -> {
+                                    createRequiredUserDirs(savedUser.getId().toString());
+                                    return UserPersistenceStatus.SUCCESS;
+                                })
                         )
-                ).onErrorReturn(RegisterStatus.INTERNAL_ERROR);
+                ).onErrorReturn(UserPersistenceStatus.INTERNAL_ERROR);
+    }
+
+    public Mono<UserPersistenceStatus> updateUser(@NotNull final AppUserModel userModel) {
+        return getOtherExistingUserByUsernameOrEmail(userModel.getUsername(), userModel.getEmail())
+                .switchIfEmpty(AuthPrincipalProvider.getAuthenticatedUserUUIDMono()
+                        .flatMap(userRepository::findById)
+                        .flatMap(foundUser -> {
+                            foundUser.setFullName(userModel.getFullName());
+                            foundUser.setUsername(userModel.getUsername());
+                            //Note: In the future, when changing email is possible,
+                            // confirmation should be required
+                            foundUser.setEmail(userModel.getEmail());
+                            foundUser.setBio(userModel.getBio());
+                            return userRepository.save(foundUser);
+                        })
+                        .map(saveUser -> UserPersistenceStatus.SUCCESS)
+                        .onErrorReturn(UserPersistenceStatus.INTERNAL_ERROR)
+                        .doOnError(Throwable::printStackTrace)
+                );
     }
 
     public Flux<SimplePostModel> getSimpleUserPostsByUsername(@NotNull final String username, @NotNull final int page) {
@@ -138,7 +160,7 @@ public class UserService {
 
 
     public Mono<Boolean> followOrUnfollowUser(String usernameToFollow) {
-        return userRepository.findByUsername(usernameToFollow)
+        return userRepository.getByUsername(usernameToFollow)
                 .flatMap(userToFollow -> AuthPrincipalProvider.getAuthenticatedUserUUIDMono()
                         .flatMap(userRepository::findById)
                         .flatMap(user -> userFollowingRepository
@@ -166,31 +188,31 @@ public class UserService {
     }
 
     public Flux<AppUserModel> getFollowers(String username, int page) {
-        return userRepository.findAppUserViewByUsername(username)
+        return userRepository.getAppUserViewByUsername(username)
                 .map(AppUserView::getId)
                 .flux()
                 .flatMap(userId -> userFollowingRepository
                         .findByFollowingId(userId, PageRequest.of(page, FOLLOWERS_LIST_PAGE_SIZE))
                 )
                 .map(UserFollowing::getUserId)
-                .flatMap(userRepository::findUserViewById)
+                .flatMap(userRepository::getAppUserViewById)
                 .mapNotNull(appUserView -> conversionService.convert(appUserView, AppUserModel.class));
     }
 
     public Flux<AppUserModel> getFollowing(String username, int page) {
-        return userRepository.findAppUserViewByUsername(username)
+        return userRepository.getAppUserViewByUsername(username)
                 .map(AppUserView::getId)
                 .flux()
                 .flatMap(userId -> userFollowingRepository
                         .findByUserId(userId, PageRequest.of(page, FOLLOWERS_LIST_PAGE_SIZE))
                 )
                 .map(UserFollowing::getFollowingId)
-                .flatMap(userRepository::findUserViewById)
+                .flatMap(userRepository::getAppUserViewById)
                 .mapNotNull(appUserView -> conversionService.convert(appUserView, AppUserModel.class));
     }
 
     public Mono<byte[]> getAppUserProfilePicture(String username) {
-        return userRepository.findAppUserViewByUsername(username)
+        return userRepository.getAppUserViewByUsername(username)
                 .map(AppUserView::getId)
                 .map(UUID::toString)
                 .publishOn(Schedulers.boundedElastic())
@@ -210,19 +232,21 @@ public class UserService {
 
     public Mono<Boolean> uploadProfilePicture(Mono<FilePart> image) {
         return AuthPrincipalProvider.getAuthenticatedUserIdMono()
-                .flatMap(userId -> image.flatMap(filePart -> {
-                            var profilePictureFilePath = pathService.getUserProfilePictureFilePath(userId);
-                            var profilePictureFile = profilePictureFilePath.toFile();
-                            if (profilePictureFile.exists()) {
-                                if (!profilePictureFile.delete()) {
-                                    return Mono.error(new ProfilePictureDeletionException(
-                                            "Deleting pfp for user with id " + userId + " failed"
-                                    ));
+                .flatMap(userId -> image
+                        .flatMap(filePart -> {
+                                    var profilePictureFilePath = pathService.getUserProfilePictureFilePath(userId);
+                                    var profilePictureFile = profilePictureFilePath.toFile();
+                                    if (profilePictureFile.exists()) {
+                                        if (!profilePictureFile.delete()) {
+                                            return Mono.error(new ProfilePictureDeletionException(
+                                                    "Deleting pfp for user with id " + userId + " failed"
+                                            ));
+                                        }
+                                    }
+                                    return filePart.transferTo(pathService.getUserProfilePictureFilePath(userId));
                                 }
-                            }
-                            return filePart.transferTo(pathService.getUserProfilePictureFilePath(userId));
-                        }
-                )).thenReturn(true)
+                        ).doOnError(Throwable::printStackTrace)
+                ).thenReturn(true)
                 .onErrorReturn(false);
     }
 
@@ -248,6 +272,38 @@ public class UserService {
                 .switchIfEmpty(Mono.just(false));
     }
 
+
+    public Mono<Boolean> isOtherUserWithUsernameExist(@NotNull final String username) {
+        return AuthPrincipalProvider.getAuthenticatedUserUUIDMono()
+                .flatMap(userId -> userRepository.getOtherAppUserViewByUsername(userId, username)
+                        .flatMap(u -> Mono.just(true))
+                        .switchIfEmpty(Mono.just(false))
+                );
+    }
+
+    public Mono<Boolean> isOtherUserWithEmailExist(@NotNull final String email) {
+        return AuthPrincipalProvider.getAuthenticatedUserUUIDMono()
+                .flatMap(userId -> userRepository.getOtherAppUserViewByEmail(userId, email)
+                        .flatMap(u -> Mono.just(true))
+                        .switchIfEmpty(Mono.just(false))
+                );
+    }
+
+
+    private Mono<UserPersistenceStatus> getOtherExistingUserByUsernameOrEmail(
+            String username,
+            String email
+    ) {
+        return AuthPrincipalProvider.getAuthenticatedUserUUIDMono()
+                .flatMap(userId -> userRepository
+                        .getOtherAppUserViewByUsername(userId, username)
+                        .map(existingUser -> UserPersistenceStatus.USERNAME_EXISTS)
+                        .switchIfEmpty(userRepository
+                                .getOtherAppUserViewByEmail(userId, email)
+                                .map(existingUser -> UserPersistenceStatus.EMAIL_EXISTS)
+                        )
+                );
+    }
 
     private Mono<Boolean> isUserFollowed(UUID userToFollow) {
         return AuthPrincipalProvider
@@ -320,7 +376,6 @@ public class UserService {
         return ch >= '0' && ch <= '9';
     }
 
-    @Deprecated
     private void createRequiredUserDirs(String userId) throws RuntimeException {
         try {
             var path = new File(Paths.get(USER_DATA_PATH, userId, "posts").toString());
@@ -337,13 +392,13 @@ public class UserService {
     }
 
     @Getter
-    public enum RegisterStatus {
+    public enum UserPersistenceStatus {
         USERNAME_EXISTS("Username already exists"),
         EMAIL_EXISTS("Email already exists"),
         INTERNAL_ERROR("Service unavailable"),
         SUCCESS("Registration successful");
 
-        RegisterStatus(final String statusMessage) {
+        UserPersistenceStatus(final String statusMessage) {
             this.statusMessage = statusMessage;
         }
 

@@ -17,6 +17,7 @@ import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Service;
 
 import javax.crypto.SecretKey;
+import java.security.KeyFactory;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.Date;
@@ -30,6 +31,10 @@ public class JwtService {
 
     @Value("${ripple.secret-key}")
     private CharSequence SECRET_KEY;
+
+    @Value("${ripple.key-id}")
+    private String KEY_ID;
+
 
     @Value("${ripple.refresh-token-expiration-minutes}")
     private Integer REFRESH_TOKEN_EXPIRATION_TIME_MIN;
@@ -88,8 +93,17 @@ public class JwtService {
             UserDetails userDetails,
             Integer expirationMinutes
     ) {
+        var jwtHeader = Jwts
+                .builder()
+                .header()
+                .keyId(KEY_ID);
+
+
         return Jwts
                 .builder()
+                .header()
+                .keyId(Jwts.SIG.HS256.getId())
+                .and()
                 .claims(extraClaims)
                 .subject(userDetails.getUsername())
                 .issuedAt(Date.from(Instant.now()))

@@ -26,7 +26,7 @@ public class AuthManager implements ReactiveAuthenticationManager {
                 .flatMap(auth -> {
                     String username = jwtService.extractUsername(auth.getCredentials());
                     Mono<AppUser> foundUser = userRepository
-                            .getAppUserByUsername(username)
+                            .getByUsername(username)
                             .switchIfEmpty(Mono.error(new IllegalArgumentException("User not found in auth manager")));
 
                     return foundUser

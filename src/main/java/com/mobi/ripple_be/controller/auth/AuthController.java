@@ -12,6 +12,7 @@ import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.core.convert.ConversionService;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import reactor.core.publisher.Mono;
@@ -29,7 +30,7 @@ public class AuthController {
     private final ConversionService conversionService;
     private final AuthService authService;
 
-    @PostMapping("/login")
+    @PostMapping(value = "/login", produces = MediaType.APPLICATION_JSON_VALUE)
     public Mono<ResponseEntity<RespModelImpl<LoginResponse>>> authenticate(
             @Valid @RequestBody LoginRequest loginRequest
     ) {
@@ -44,15 +45,17 @@ public class AuthController {
     }
 
     @PostMapping("/register")
-    public Mono<ResponseEntity<RespModelImpl<Boolean>>> register(@Valid @RequestBody RegisterRequest registerRequest) {
+    public Mono<ResponseEntity<RespModelImpl<Boolean>>> register(
+            @Valid @RequestBody RegisterRequest registerRequest
+    ) {
         var userModel = conversionService.convert(registerRequest, AppUserModel.class);
 
         assert userModel != null;
-        return userService.saveUser(userModel).mapNotNull(registerStatus ->
-                switch (registerStatus) {
+        return userService.saveUser(userModel).mapNotNull(persistenceStatus ->
+                switch (persistenceStatus) {
                     case SUCCESS -> ResponseEntity.ok(RespModelImpl.of(true));
                     case USERNAME_EXISTS, EMAIL_EXISTS, INTERNAL_ERROR -> new ResponseEntity<>(
-                            RespModelImpl.ofError(registerStatus.getStatusMessage()),
+                            RespModelImpl.ofError(persistenceStatus.getStatusMessage()),
                             HttpStatus.CONFLICT
                     );
                 }

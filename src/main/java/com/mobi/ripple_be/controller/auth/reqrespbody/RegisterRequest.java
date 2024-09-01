@@ -1,5 +1,6 @@
 package com.mobi.ripple_be.controller.auth.reqrespbody;
 
+import com.mobi.ripple_be.validator.AppEmail;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 import lombok.*;
@@ -19,7 +20,7 @@ public class RegisterRequest {
     private String username;
 
     @NotNull(message = "Email is mandatory")
-    @Size(max = 320, message = "Email cannot be longer than 320 characters")
+    @AppEmail
     private String email;
 
     @NotNull(message = "Password is mandatory")

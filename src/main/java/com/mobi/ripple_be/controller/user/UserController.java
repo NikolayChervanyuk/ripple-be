@@ -2,9 +2,12 @@ package com.mobi.ripple_be.controller.user;
 
 import com.mobi.ripple_be.controller.user.reqrespbody.SimpleUserPostResponse;
 import com.mobi.ripple_be.controller.user.reqrespbody.SimpleUserResponse;
+import com.mobi.ripple_be.controller.user.reqrespbody.UpdateUserRequest;
 import com.mobi.ripple_be.controller.user.reqrespbody.UserProfileResponse;
+import com.mobi.ripple_be.model.AppUserModel;
 import com.mobi.ripple_be.model.respmodel.RespModelImpl;
 import com.mobi.ripple_be.service.UserService;
+import com.mobi.ripple_be.util.AuthPrincipalProvider;
 import lombok.AllArgsConstructor;
 import org.springframework.core.convert.ConversionService;
 import org.springframework.http.HttpStatus;
@@ -16,6 +19,7 @@ import reactor.core.publisher.Mono;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 import java.util.UUID;
 
 @RestController
@@ -53,13 +57,55 @@ public class UserController {
             @PathVariable(name = "username") String username
     ) {
         return userService.getAppUserModelByUsername(username)
-                .mapNotNull(userModel -> conversionService.convert(userModel, UserProfileResponse.class))
+                .flatMap(userModel -> {
+                    var userProfileResponse = Objects.requireNonNull(
+                            conversionService.convert(userModel, UserProfileResponse.class));
+                    return AuthPrincipalProvider.getAuthenticatedUserIdMono()
+                            .map(userId -> {
+                                if (userId.equals(userModel.getId())) {
+                                    userProfileResponse.setEmail(userModel.getEmail());
+                                }
+                                return userProfileResponse;
+                            });
+                })
                 .map(userResponse -> ResponseEntity.ok(RespModelImpl.of(userResponse)))
                 .defaultIfEmpty(new ResponseEntity<>(
-                        RespModelImpl.ofError("No users found"),
+                        RespModelImpl.ofError("No user found"),
                         HttpStatus.NOT_FOUND
                 ))
                 .onErrorReturn(ResponseEntity.internalServerError().body(RespModelImpl.serviceUnavailableError()));
+    }
+
+    @GetMapping(value = "users/other", params = "username")
+    public Mono<RespModelImpl<Boolean>> isOtherUserExistWithUsername(@RequestParam String username) {
+        return userService.isOtherUserWithUsernameExist(username)
+                .map(RespModelImpl::of);
+    }
+
+    @GetMapping(value = "users/other", params = "email")
+    public Mono<RespModelImpl<Boolean>> isOtherUserExistWithEmail(@RequestParam String email) {
+        return userService.isOtherUserWithEmailExist(email)
+                .map(RespModelImpl::of);
+    }
+
+    @PutMapping("user")
+    public Mono<ResponseEntity<RespModelImpl<Boolean>>> updateUser(
+            @RequestBody UpdateUserRequest updateUserRequest
+    ) {
+        return userService.updateUser(Objects.requireNonNull(
+                conversionService.convert(updateUserRequest, AppUserModel.class))
+        ).map(persistenceStatus ->
+                switch (persistenceStatus) {
+                    case SUCCESS -> ResponseEntity.ok(RespModelImpl.of(true));
+                    case USERNAME_EXISTS, EMAIL_EXISTS -> new ResponseEntity<>(
+                            RespModelImpl.ofError(persistenceStatus.getStatusMessage()),
+                            HttpStatus.CONFLICT
+                    );
+                    case INTERNAL_ERROR -> new ResponseEntity<>(
+                            RespModelImpl.ofError(persistenceStatus.getStatusMessage()),
+                            HttpStatus.INTERNAL_SERVER_ERROR
+                    );
+                });
     }
 
     @GetMapping(value = "user", params = "username")
@@ -132,19 +178,26 @@ public class UserController {
                 .mapNotNull(userModel -> conversionService.convert(userModel, SimpleUserResponse.class))
                 .collectList()
                 .map(RespModelImpl::of)
-                .defaultIfEmpty(RespModelImpl.of(new ArrayList<>())) //should probably send empty array instead of error?
+                .defaultIfEmpty(RespModelImpl.of(new ArrayList<>()))
                 .onErrorReturn(RespModelImpl.serviceUnavailableError());
     }
 
-    @GetMapping(value = "user-pfp/{username}", produces = MediaType.IMAGE_JPEG_VALUE)
-    public Mono<ResponseEntity<byte[]>> getProfilePicture(@PathVariable String username) {
+    @GetMapping(value = "user-pfp/{username}")
+    public Mono<ResponseEntity<?>> getProfilePicture(@PathVariable String username) {
         return userService.getAppUserProfilePicture(username)
-                .map(ResponseEntity::ok)
+                .map(pfp -> {
+                    if (pfp.length == 0) {
+                        return ResponseEntity.notFound().build();
+                    }
+                    return ResponseEntity.ok(RespModelImpl.of(pfp));
+                })
                 .onErrorReturn(ResponseEntity.internalServerError().build());
     }
 
     @PostMapping(value = "user-pfp", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-    public Mono<ResponseEntity<RespModelImpl<Boolean>>> uploadProfilePicture(@RequestPart("image") Mono<FilePart> image) {
+    public Mono<ResponseEntity<RespModelImpl<Boolean>>> uploadProfilePicture(
+            @RequestPart("image") Mono<FilePart> image
+    ) {
         return userService.uploadProfilePicture(image)
                 .map(pfp -> ResponseEntity.ok(RespModelImpl.of(true)))
                 .onErrorReturn(ResponseEntity.internalServerError().body(RespModelImpl.serviceUnavailableError()));
