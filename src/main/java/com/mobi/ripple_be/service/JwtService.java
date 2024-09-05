@@ -93,11 +93,6 @@ public class JwtService {
             UserDetails userDetails,
             Integer expirationMinutes
     ) {
-        var jwtHeader = Jwts
-                .builder()
-                .header()
-                .keyId(KEY_ID);
-
 
         return Jwts
                 .builder()

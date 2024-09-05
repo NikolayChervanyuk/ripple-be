@@ -6,6 +6,7 @@ import com.mobi.ripple_be.model.AppUserModel;
 import org.springframework.stereotype.Component;
 
 import java.time.Instant;
+import java.time.temporal.TemporalAmount;
 
 @Component
 public class RegisterRequestToAppUserModel extends BaseConverter<RegisterRequest, AppUserModel> {
@@ -19,7 +20,7 @@ public class RegisterRequestToAppUserModel extends BaseConverter<RegisterRequest
                 .followers(0L)
                 .following(0L)
                 .postsCount(0L)
-                .lastIssuedTokenRevocation(Instant.now())
+                .lastIssuedTokenRevocation(Instant.now().minusSeconds(120))
                 .build();
     }
 }

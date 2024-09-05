@@ -12,6 +12,7 @@ import com.mobi.ripple_be.repository.UserFollowingRepository;
 import com.mobi.ripple_be.repository.UserRepository;
 import com.mobi.ripple_be.util.AuthPrincipalProvider;
 import com.mobi.ripple_be.util.IdentifierType;
+import com.mobi.ripple_be.util.MediaUtils;
 import com.mobi.ripple_be.view.AppUserCredentialsView;
 import com.mobi.ripple_be.view.AppUserView;
 import jakarta.validation.constraints.NotNull;
@@ -28,7 +29,6 @@ import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import reactor.core.scheduler.Schedulers;
 
-import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.nio.file.Files;
@@ -243,10 +243,24 @@ public class UserService {
                                             ));
                                         }
                                     }
-                                    return filePart.transferTo(pathService.getUserProfilePictureFilePath(userId));
+                                    return filePart.transferTo(profilePictureFilePath)
+                                            .thenReturn(profilePictureFilePath);
                                 }
-                        ).doOnError(Throwable::printStackTrace)
-                ).thenReturn(true)
+                        )
+                        .map(pfpFilePath -> MediaUtils.JPG.resizeImage(
+                                        pfpFilePath.toFile(),
+                                        pathService.getSmallUserProfilePictureFilePath(userId).toFile(),
+                                        200
+                                )
+                        )
+                        .flatMap(isSmallImageCreated -> {
+                            if (!isSmallImageCreated) {
+                                return deleteProfilePicture();
+                            }
+                            return Mono.just(true);
+                        })
+                        .doOnError(Throwable::printStackTrace)
+                )
                 .onErrorReturn(false);
     }
 
@@ -378,16 +392,32 @@ public class UserService {
 
     private void createRequiredUserDirs(String userId) throws RuntimeException {
         try {
-            var path = new File(Paths.get(USER_DATA_PATH, userId, "posts").toString());
-            if (path.exists()) {
-                log.warn("User data path {} already exists!", path.getPath());
-                return;
-            }
-            if (path.mkdirs()) {
-                log.info("Successfully created user directory {}/posts", userId);
-            }
+            createPostDirs(userId);
+            createSmallPostDirs(userId);
         } catch (Exception e) {
             throw new RuntimeException(e);
+        }
+    }
+
+    private void createPostDirs(String userId) throws RuntimeException {
+        final var postsPath = pathService.getUserPostsPath(userId).toFile();
+        if (postsPath.exists()) {
+            log.warn("User data path {} already exists!", postsPath.getPath());
+            return;
+        }
+        if (postsPath.mkdirs()) {
+            log.info("Successfully created user directory {}/posts", userId);
+        }
+    }
+
+    private void createSmallPostDirs(String userId) throws RuntimeException {
+        final var smallPostsPath = pathService.getSmallUserPostsPath(userId).toFile();
+        if (smallPostsPath.exists()) {
+            log.warn("User small posts path {} already exists!", smallPostsPath.getPath());
+            return;
+        }
+        if (smallPostsPath.mkdirs()) {
+            log.info("Successfully created user directory {}/posts_small", userId);
         }
     }
 

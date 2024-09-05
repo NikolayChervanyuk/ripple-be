@@ -47,7 +47,7 @@ public interface UserRepository extends R2dbcRepository<AppUser, UUID> {
             "LEFT JOIN user_following AS uf ON uf.user_id = u.id " +
             "WHERE u.username ILIKE :username || '%' " +
             "ORDER BY (uf.following_id IS NOT NULL) DESC , u.followers DESC " +
-            "LIMIT 6")
+            "LIMIT 16")
     Flux<AppUserView> findAppUserViewsByUsername(String username);
 
     @Modifying

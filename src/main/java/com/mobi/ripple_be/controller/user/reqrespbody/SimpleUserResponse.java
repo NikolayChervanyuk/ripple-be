@@ -13,4 +13,5 @@ public class SimpleUserResponse {
     private String fullName;
     private String username;
     private boolean isActive;
+    private byte[] smallProfilePicture;
 }

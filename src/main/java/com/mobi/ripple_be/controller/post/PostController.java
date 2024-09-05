@@ -5,7 +5,6 @@ import com.mobi.ripple_be.controller.post.reqrespbody.CreatePostRequest;
 import com.mobi.ripple_be.controller.post.reqrespbody.GetPostResponse;
 import com.mobi.ripple_be.model.PostModel;
 import com.mobi.ripple_be.model.respmodel.RespModelImpl;
-import com.mobi.ripple_be.service.MediaService;
 import com.mobi.ripple_be.service.PathService;
 import com.mobi.ripple_be.service.PostService;
 import lombok.AllArgsConstructor;
@@ -29,7 +28,6 @@ public class PostController {
 
     private final PostService postService;
     private final ConversionService conversionService;
-    private final MediaService mediaService;
     private final PathService pathService;
 
     @GetMapping("/{postId}")
@@ -47,7 +45,6 @@ public class PostController {
                 ));
     }
 
-    //TODO: test
     @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public Mono<ResponseEntity<RespModelImpl<Boolean>>> savePost(
             @RequestPart("image") Mono<FilePart> image,

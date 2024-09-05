@@ -9,7 +9,7 @@ public class ApplicationException extends RuntimeException {
 
     public ApplicationException(String message) {
         super(DEFAULT_MESSAGE + " -> " + message);
-        log.error(DEFAULT_MESSAGE);
+        log.error(DEFAULT_MESSAGE + ": {}", message);
     }
 
     public ApplicationException() {

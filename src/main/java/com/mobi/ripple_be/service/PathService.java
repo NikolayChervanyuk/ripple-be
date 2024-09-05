@@ -24,13 +24,26 @@ public class PathService {
         return Path.of(USER_DATA_PATH, userId, "posts");
     }
 
+    public Path getSmallUserPostsPath(String userId) {
+        return Path.of(USER_DATA_PATH, userId, "posts_small");
+    }
+
     public Mono<Path> getAuthUserPostsPathMono() {
         return AuthPrincipalProvider.getAuthenticatedUserIdMono()
-                .map(userId -> Path.of(USER_DATA_PATH, userId, "posts"));
+                .map(this::getUserPostsPath);
+    }
+
+    public Mono<Path> getAuthUserSmallPostsPathMono() {
+        return AuthPrincipalProvider.getAuthenticatedUserIdMono()
+                .map(this::getSmallUserPostsPath);
     }
 
     public Path getUserProfilePictureFilePath(String userId) {
-        return Path.of(USER_DATA_PATH, userId, "pfp.jpg");
+        return getUserPath(userId).resolve("pfp.jpg");
+    }
+
+    public Path getSmallUserProfilePictureFilePath(String userId) {
+        return getUserPath(userId).resolve("pfp_small.jpg");
     }
 
     public Path getChatFilePath(String chatId) {

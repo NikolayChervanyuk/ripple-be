@@ -48,7 +48,17 @@ public class UserController {
                 .mapNotNull(userModel -> conversionService.convert(userModel, UserProfileResponse.class))
                 .collectList()
                 .map(RespModelImpl::of)
-                .defaultIfEmpty(RespModelImpl.ofError("No users found username"))
+                .defaultIfEmpty(RespModelImpl.ofError("No users of such username"))
+                .onErrorReturn(RespModelImpl.serviceUnavailableError());
+    }
+
+    @GetMapping(value = "users/find-simple", params = "like")
+    public Mono<RespModelImpl<List<SimpleUserResponse>>> findSimpleUsersLikeUsername(@RequestParam String like) {
+        return userService.findUsersLikeUsername(like)
+                .mapNotNull(userModel -> conversionService.convert(userModel, SimpleUserResponse.class))
+                .collectList()
+                .map(RespModelImpl::of)
+                .defaultIfEmpty(RespModelImpl.ofError("No users found of such username"))
                 .onErrorReturn(RespModelImpl.serviceUnavailableError());
     }
 

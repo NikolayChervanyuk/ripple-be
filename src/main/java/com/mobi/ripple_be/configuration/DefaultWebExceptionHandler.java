@@ -1,12 +1,16 @@
 package com.mobi.ripple_be.configuration;
 
+import com.mobi.ripple_be.exception.EntityNotFoundException;
+import com.mobi.ripple_be.model.respmodel.RespModelImpl;
 import io.jsonwebtoken.ExpiredJwtException;
 import jakarta.annotation.Priority;
 import lombok.NonNull;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.web.reactive.error.ErrorWebExceptionHandler;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.http.codec.HttpMessageWriter;
+import org.springframework.web.ErrorResponse;
 import org.springframework.web.bind.annotation.ControllerAdvice;
 import org.springframework.web.reactive.function.server.HandlerStrategies;
 import org.springframework.web.reactive.function.server.ServerResponse;
@@ -27,6 +31,7 @@ public class DefaultWebExceptionHandler implements ErrorWebExceptionHandler {
 
         Mono<ServerResponse> responseMono = switch (ex) {
             case ExpiredJwtException e -> handleExpiredJwtException();
+            case EntityNotFoundException e -> handleEntityNotFoundException(e);
             default -> throw new RuntimeException(ex);
         };
 
@@ -37,6 +42,11 @@ public class DefaultWebExceptionHandler implements ErrorWebExceptionHandler {
         return ServerResponse.status(HttpStatus.UNAUTHORIZED).build();
     }
 
+    public Mono<ServerResponse> handleEntityNotFoundException(EntityNotFoundException ex) {
+
+        return ServerResponse.status(HttpStatus.NOT_FOUND)
+                .bodyValue(RespModelImpl.ofError(ex.getMessage()));
+    }
 
     private static class ResponseContextInstance implements ServerResponse.Context {
 
