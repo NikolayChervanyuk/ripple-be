@@ -15,6 +15,7 @@ public class PostCommentModel {
 
     private String id;
     private String parentPostId;
+    private byte[] authorProfilePicture;
     private String authorId;
     private String authorName;
     private String authorUsername;

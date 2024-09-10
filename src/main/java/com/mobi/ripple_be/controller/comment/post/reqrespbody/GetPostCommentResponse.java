@@ -12,6 +12,7 @@ import java.time.Instant;
 public class GetPostCommentResponse {
 
     private String commentId;
+    private byte[] authorProfilePicture;
     private String authorName;
     private String authorUsername;
     private Instant createdDate;

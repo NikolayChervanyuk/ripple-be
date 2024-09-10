@@ -17,6 +17,7 @@ import org.springframework.http.codec.multipart.FilePart;
 import org.springframework.web.bind.annotation.*;
 import reactor.core.publisher.Mono;
 
+import java.util.List;
 import java.util.Objects;
 import java.util.UUID;
 
@@ -48,7 +49,7 @@ public class PostController {
     @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public Mono<ResponseEntity<RespModelImpl<Boolean>>> savePost(
             @RequestPart("image") Mono<FilePart> image,
-            @RequestPart("caption") String caption
+            @RequestPart(value = "caption", required = false) String caption
     ) {
         return pathService.getAuthUserPostsPathMono()
                 .map(imagePath -> new CreatePostRequest(image, imagePath, caption))

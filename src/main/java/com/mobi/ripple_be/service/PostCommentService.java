@@ -28,6 +28,8 @@ public class PostCommentService implements Authorable {
 
     private final CommentReplyRepository commentReplyRepository;
     private final ReplyLikeRepository replyLikeRepository;
+    private final MediaService mediaService;
+    private final PathService pathService;
     @Value("${ripple.page-size.post-comments}")
     private Integer POST_COMMENTS_PAGE_SIZE;
 

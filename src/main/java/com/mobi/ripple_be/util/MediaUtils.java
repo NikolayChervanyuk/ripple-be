@@ -55,9 +55,14 @@ public class MediaUtils {
                 final int width = inputImage.getWidth();
                 final int height = inputImage.getHeight();
 
-                final double aspectRatio = (double) width / (double) height;
-                final int targetWidth = Long.valueOf(Math.round(targetUniformSizePx * aspectRatio)).intValue();
-                final var targetHeight = Long.valueOf(Math.round(targetUniformSizePx / aspectRatio)).intValue();
+                if(Math.max(width,height) < targetUniformSizePx) {
+                    return ImageIO.write(inputImage, "jpg", dest);
+                }
+
+                float scaleDownFactor = (float) targetUniformSizePx / Math.max(width, height);
+
+                final int targetWidth = Math.round(width * scaleDownFactor);
+                final int targetHeight = Math.round(height * scaleDownFactor);
 
                 final Image resultingImage = inputImage.getScaledInstance(targetWidth, targetHeight, Image.SCALE_SMOOTH);
                 final BufferedImage outputImage = new BufferedImage(targetWidth, targetHeight, BufferedImage.TYPE_INT_RGB);

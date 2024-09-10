@@ -12,6 +12,7 @@ public class PostCommentModelToGetPostCommentResponse extends
     public GetPostCommentResponse convert(PostCommentModel source) {
         return GetPostCommentResponse.builder()
                 .commentId(source.getId())
+                .authorProfilePicture(source.getAuthorProfilePicture())
                 .authorName(source.getAuthorName())
                 .authorUsername(source.getAuthorUsername())
                 .createdDate(source.getCreationDate())
