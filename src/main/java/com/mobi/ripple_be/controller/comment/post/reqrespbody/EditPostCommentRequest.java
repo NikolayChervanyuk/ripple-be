@@ -10,8 +10,6 @@ import lombok.*;
 @AllArgsConstructor
 @NoArgsConstructor
 public class EditPostCommentRequest {
-//    @NotNull
-//    private String commentId;
 
     @NotNull
     @Size(min = 1, max = 4096)

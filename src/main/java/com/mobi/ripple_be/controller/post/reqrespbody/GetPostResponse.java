@@ -13,20 +13,16 @@ import java.util.UUID;
 public class GetPostResponse {
 
     private UUID id;
-
     private Instant creationDate;
-
     private Instant lastModifiedDate;
-
     private UUID authorId;
-
+    private String authorFullName;
+    private String authorUsername;
+    private byte[] authorSmallProfilePicture;
+    private boolean isAuthorActive;
     private byte[] postImage;
-
     private String caption;
-
     private Long likesCount;
-
     private boolean liked;
-
     private Long commentsCount;
 }

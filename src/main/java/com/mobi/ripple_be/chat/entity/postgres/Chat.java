@@ -5,6 +5,8 @@ import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import lombok.*;
 
+import java.time.Instant;
+
 @Entity
 @Getter
 @Setter
@@ -14,5 +16,8 @@ public class Chat extends BaseEntity {
 
     @Column
     private String chatName;
+
+    @Column
+    private Instant lastSentTime;
 
 }

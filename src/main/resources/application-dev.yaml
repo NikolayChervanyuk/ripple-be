@@ -58,9 +58,12 @@ ripple:
   chat-data-dir: user_data/chats
   page-size:
     simple-posts: 12
+    user-posts: 4
     post-comments: 20
-    comment-replies: 20
-    followers-list: 30
+    comment-replies: 10
+    followers-list: 16
+    chats: 16
+    messages: 20
   constraints:
     max-small-image-bytes: 65536
   routes:

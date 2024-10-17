@@ -14,4 +14,6 @@ public class ChatCreatedContent implements MessageContent {
 
     @NotNull
     private String creatorId;
+
+    private String chatName;
 }

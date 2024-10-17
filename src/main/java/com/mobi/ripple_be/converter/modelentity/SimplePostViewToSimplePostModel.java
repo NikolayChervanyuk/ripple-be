@@ -33,6 +33,7 @@ public class SimplePostViewToSimplePostModel extends BaseConverter<SimplePostVie
                         )
                 )
                 .authorId(source.getAuthorId())
+                .creationDate(source.getCreationDate())
                 .build();
     }
 }

@@ -66,8 +66,6 @@ public class CommentReplyController {
                 .onErrorReturn(RespModelImpl.serviceUnavailableError());
     }
 
-
-    //TODO: test
     @DeleteMapping
     public Mono<RespModelImpl<Boolean>> deleteCommentReply(@PathVariable String postId,
                                                            @PathVariable String commentId,

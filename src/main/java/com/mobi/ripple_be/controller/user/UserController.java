@@ -44,7 +44,7 @@ public class UserController {
 
     @GetMapping(value = "users/find", params = "like")
     public Mono<RespModelImpl<List<UserProfileResponse>>> findUsersLikeUsername(@RequestParam String like) {
-        return userService.findUsersLikeUsername(like)
+        return userService.findUsersLike(null, like)
                 .mapNotNull(userModel -> conversionService.convert(userModel, UserProfileResponse.class))
                 .collectList()
                 .map(RespModelImpl::of)
@@ -52,14 +52,32 @@ public class UserController {
                 .onErrorReturn(RespModelImpl.serviceUnavailableError());
     }
 
-    @GetMapping(value = "users/find-simple", params = "like")
-    public Mono<RespModelImpl<List<SimpleUserResponse>>> findSimpleUsersLikeUsername(@RequestParam String like) {
-        return userService.findUsersLikeUsername(like)
+    @GetMapping(value = "users/find-simple")
+    public Mono<ResponseEntity<RespModelImpl<List<SimpleUserResponse>>>> findSimpleUsersLike(
+            @RequestParam(value = "username", required = false) String username,
+            @RequestParam(value = "fullName", required = false) String fullName
+    ) {
+        if (username == null && fullName == null) {
+            return Mono.just(ResponseEntity.badRequest()
+                    .body(RespModelImpl.ofError("Username or Full Name is required")));
+        }
+        return userService.findUsersLike(fullName, username)
                 .mapNotNull(userModel -> conversionService.convert(userModel, SimpleUserResponse.class))
                 .collectList()
                 .map(RespModelImpl::of)
-                .defaultIfEmpty(RespModelImpl.ofError("No users found of such username"))
-                .onErrorReturn(RespModelImpl.serviceUnavailableError());
+                .map(ResponseEntity::ok)
+                .defaultIfEmpty(
+                        new ResponseEntity<>(
+                                RespModelImpl.ofError("No users found with provided query parameters"),
+                                HttpStatus.NOT_FOUND
+                        )
+                )
+                .onErrorReturn(
+                        new ResponseEntity<>(
+                                RespModelImpl.serviceUnavailableError(),
+                                HttpStatus.INTERNAL_SERVER_ERROR
+                        )
+                );
     }
 
     @GetMapping("user/{username}")
@@ -119,12 +137,12 @@ public class UserController {
     }
 
     @GetMapping(value = "user", params = "username")
-    public Mono<ResponseEntity<SimpleUserResponse>> getSimpleUserByUsername(
+    public Mono<ResponseEntity<RespModelImpl<SimpleUserResponse>>> getSimpleUserByUsername(
             @RequestParam("username") String username
     ) {
         return userService.getAppUserModelByUsername(username)
                 .mapNotNull(userModel -> conversionService.convert(userModel, SimpleUserResponse.class))
-                .map(ResponseEntity::ok);
+                .map(respModel -> ResponseEntity.ok(RespModelImpl.of(respModel)));
     }
 
     @GetMapping(value = "user", params = "id")

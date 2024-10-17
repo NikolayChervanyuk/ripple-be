@@ -3,6 +3,7 @@ package com.mobi.ripple_be.configuration;
 
 import com.mobi.ripple_be.chat.websocket.util.ChatMessageManagerV2;
 import com.mobi.ripple_be.chat.websocket.util.ChatMessageWebSocketHandler;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.web.reactive.HandlerMapping;
@@ -14,6 +15,7 @@ import java.util.HashMap;
 import java.util.Map;
 
 @Configuration
+@Slf4j
 public class WebSocketConfig {
 
     @Bean

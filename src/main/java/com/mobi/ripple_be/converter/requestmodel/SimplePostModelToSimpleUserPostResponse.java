@@ -13,6 +13,7 @@ public class SimplePostModelToSimpleUserPostResponse extends BaseConverter<Simpl
                 .id(source.getId())
                 .image(source.getImage())
                 .authorId(source.getAuthorId())
+                .creationDate(source.getCreationDate())
                 .build();
     }
 }

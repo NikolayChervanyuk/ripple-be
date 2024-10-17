@@ -87,7 +87,7 @@ public class PostCommentService implements Authorable {
                 .map(postComment -> true);
     }
 
-    @PreAuthorize("@postCommentService.isAuthorOf(#commentId)")
+    @PreAuthorize("@postCommentService.isAuthorized(#commentId)")
     public Mono<Boolean> editPostComment(String parentPostId, String commentId, PostCommentModel postCommentModel) {
 
         return postCommentRepository.getPostCommentByParentPostIdAndId(
@@ -103,7 +103,7 @@ public class PostCommentService implements Authorable {
 
     //TODO: test
     @Transactional
-    @PreAuthorize("@postCommentService.isAuthorOf(#commentId)")
+    @PreAuthorize("@postCommentService.isAuthorized(#commentId)")
     public Mono<Boolean> deletePostComment(String parentPostId, UUID commentId) {
         return postRepository
                 .getPostById(UUID.fromString(parentPostId))
@@ -156,7 +156,7 @@ public class PostCommentService implements Authorable {
     }
 
     @Override
-    public Mono<Boolean> isAuthorOf(String commentId) {
+    public Mono<Boolean> isAuthorized(String commentId) {
         return AuthPrincipalProvider.getAuthenticatedUserIdMono()
                 .flatMap(userId -> postCommentRepository.findById(UUID.fromString(commentId))
                         .map(postComment -> postComment.getAuthorId().toString().equals(userId)));
@@ -169,8 +169,6 @@ public class PostCommentService implements Authorable {
                                 userId,
                                 commentId
                         )
-                )
-                .map(v -> true)
-                .defaultIfEmpty(false);
+                ).hasElement();
     }
 }

@@ -15,22 +15,16 @@ import java.util.UUID;
 public class PostModel {
 
     private UUID id;
-
     private Instant creationDate;
-
     private Instant lastModifiedDate;
-
     private UUID authorId;
-
+    private String authorFullName;
+    private String authorUsername;
+    private boolean isAuthorActive;
     private Mono<FilePart> imageFile;
-
     private String postImageDir;
-
     private String caption;
-
     private Long likesCount;
-
     private boolean isLikedByUser;
-
     private Long commentsCount;
 }

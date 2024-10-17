@@ -8,7 +8,9 @@ import lombok.*;
 @Builder
 @AllArgsConstructor
 @NoArgsConstructor
-public class ParticipantLeftContentDTO implements MessageContentDTO{
+public class ParticipantLeftContentDTO implements MessageContentDTO {
     @NotNull
     private String chatId;
+
+    private String participantId;
 }

@@ -1,9 +1,5 @@
 package com.mobi.ripple_be.bootstrap;
 
-import com.mobi.ripple_be.chat.entity.mongo.Message;
-import com.mobi.ripple_be.chat.repository.mongo.MessageRepository;
-import com.mobi.ripple_be.chat.websocket.dto.content.ChatOpenedContent;
-import com.mobi.ripple_be.chat.websocket.util.ChatEventType;
 import com.mobi.ripple_be.entity.AppUser;
 import com.mobi.ripple_be.exception.BootstrapDataException;
 import com.mobi.ripple_be.repository.UserRepository;
@@ -27,8 +23,8 @@ import java.util.function.Supplier;
 @Component
 @RequiredArgsConstructor
 public class DataInitializer implements ApplicationListener<ContextRefreshedEvent> {
-    private final UserRepository userRepository;
-    private final MessageRepository messageRepository;
+//    private final UserRepository userRepository;
+    //    private final MessageRepository messageRepository;
     //    private final RoleRepository roleRepository;
     @Value("${ripple.bootstrap.delete-data-on-startup}")
     private Boolean shouldDelete;
@@ -45,12 +41,12 @@ public class DataInitializer implements ApplicationListener<ContextRefreshedEven
 
     @Override
     public void onApplicationEvent(@NonNull ContextRefreshedEvent event) {
-        if (shouldDelete) {
-            log.warn("Current configuration is set to delete all data from the database." +
-                    " To change this behavior set favor.bootstrap.delete-data-on-startup to false");
-            userRepository.deleteAll().block();
-        }
-        log.info("Loading bootstrapped data. This action is performed for 'dev' profile only");
+//        if (shouldDelete) {
+//            log.warn("Current configuration is set to delete all data from the database." +
+//                    " To change this behavior set favor.bootstrap.delete-data-on-startup to false");
+//            userRepository.deleteAll().block();
+//        }
+//        log.info("Loading bootstrapped data. This action is performed for 'dev' profile only");
 //        loadRoles();
 //        messageRepository.save(Message.builder()
 //                .eventType(ChatEventType.CHAT_CREATED)
@@ -59,112 +55,112 @@ public class DataInitializer implements ApplicationListener<ContextRefreshedEven
 //                        .chatId(UUID.randomUUID().toString())
 //                        .build())
 //                .build()).subscribe();
-        if (userRepository.findAll().count().block() == 0L) {
-            loadUsers();
-        }
+//        if (userRepository.findAll().count().block() == 0L) {
+//            loadUsers();
+//        }
     }
 
-    private void loadUsers() {
-        BCryptPasswordEncoder passwordEncoder = new BCryptPasswordEncoder();
-
-        Supplier<BootstrapDataException> exceptionSupplier = () ->
-                new BootstrapDataException("Can't find the specified role.");
-//        Role userRole = roleRepository.findByRoleType(RoleType.USER).blockOptional().orElseThrow(exceptionSupplier);
-//        Role adminRole = roleRepository.findByRoleType(RoleType.ADMIN).blockOptional().orElseThrow(exceptionSupplier);
-
-        log.info("Loading users");
-
-        {
-            AppUser appUser1 = new AppUser();
-            appUser1.setId(user1Id);
-            appUser1.setEmail("ivan4o_gotininq@abv.bg");
-            appUser1.setPassword(passwordEncoder.encode("aA1234!"));
-            appUser1.setUsername("iva4o_gt");
-            appUser1.setFullName("Ivan Gotininq");
-            appUser1.setFollowers(0L);
-            appUser1.setFollowing(0L);
-            appUser1.setPostsCount(0L);
-            appUser1.setRole(Role.USER);
-            appUser1.setLastIssuedTokenRevocation(Instant.now());
-//            user1.setFirstName("Ivan");
-//            user1.setLastName("Georgiev");
-//            user1.setBirthDate(Date.valueOf(LocalDate.of(1990, 10, 5)));
-//            user1.setPhoneNumber("359885554545");
-//            user1.setCountryCode("359");
-//            user1.setFollowers(0L);
-//            user1.setFollowing(0L);
-//            user1.setIsEmailValidated(true);
-//            user1.setIsPhoneNumberValidated(true);
-//            user1.setRoles(List.of(userRole));
-            userRepository.save(appUser1)
-                    .subscribe(u -> log.info(">>>>>>>>>>>user1 saved successfully"));
-
-//            userRole.getUsers().add(user1);
-//            roleRepository.save(userRole);
-        }
-
-        {
-            AppUser appUser2 = new AppUser();
-            appUser2.setId(user2Id);
-            appUser2.setEmail("petar_petrov33@gmail.com");
-            appUser2.setPassword(passwordEncoder.encode("bB1234!"));
-            appUser2.setUsername("petar_p02");
-            appUser2.setFullName("Petar Petrov");
-            appUser2.setFollowers(0L);
-            appUser2.setFollowing(0L);
-            appUser2.setPostsCount(0L);
-            appUser2.setRole(Role.USER);
-            appUser2.setLastIssuedTokenRevocation(Instant.now());
-//            user2.setFirstName("Petar");
-//            user2.setLastName("Petrov");
-//            user2.setBirthDate(Date.valueOf(LocalDate.of(2000, 11, 6)));
-//            user2.setPhoneNumber("359883771111");
-//            user2.setCountryCode("359");
-//            user2.setFollowers(0L);
-//            user2.setFollowing(0L);
-//            user2.setIsEmailValidated(true);
-//            user2.setIsPhoneNumberValidated(false);
-//            user2.setRoles(List.of(userRole));
-            userRepository.save(appUser2)
-                    .subscribe(u -> log.info(">>>>>>>>>>>user2 saved successfully"));
-            ;
-
-//            userRole.getUsers().add(user2);
-//            roleRepository.save(userRole);
-        }
-
-        {
-            AppUser appUser3 = new AppUser();
-//            appUser3.setId(user3Id);
-            appUser3.setEmail("izdislav_kostov7@abv.bg");
-            appUser3.setPassword(passwordEncoder.encode("aA1234!"));
-            appUser3.setUsername("iz_dis_lav");
-            appUser3.setFullName("Iz Dislav");
-            appUser3.setFollowers(0L);
-            appUser3.setFollowing(0L);
-            appUser3.setPostsCount(0L);
-            appUser3.setRole(Role.USER);
-            appUser3.setLastIssuedTokenRevocation(Instant.now());
-
-//            user3.setFirstName("Izdislav");
-//            user3.setLastName("Kostov");
-//            user3.setBirthDate(Date.valueOf(LocalDate.of(2002, 12, 7)));
-//            user3.setPhoneNumber("359887878877");
-//            user3.setCountryCode("359");
-//            user3.setFollowers(0L);
-//            user3.setFollowing(0L);
-//            user3.setIsEmailValidated(false);
-//            user3.setIsPhoneNumberValidated(false);
-//            user3.setRoles(List.of(adminRole));
-            userRepository.save(appUser3)
-                    .subscribe(u -> log.info(">>>>>>>>>>>user3 saved successfully"));
-            ;
-
-//            adminRole.getUsers().add(user3);
-//            roleRepository.save(userRole);
-        }
-        log.info("Users loaded successfully");
-    }
+//    private void loadUsers() {
+//        BCryptPasswordEncoder passwordEncoder = new BCryptPasswordEncoder();
+//
+//        Supplier<BootstrapDataException> exceptionSupplier = () ->
+//                new BootstrapDataException("Can't find the specified role.");
+////        Role userRole = roleRepository.findByRoleType(RoleType.USER).blockOptional().orElseThrow(exceptionSupplier);
+////        Role adminRole = roleRepository.findByRoleType(RoleType.ADMIN).blockOptional().orElseThrow(exceptionSupplier);
+//
+//        log.info("Loading users");
+//
+//        {
+//            AppUser appUser1 = new AppUser();
+//            appUser1.setId(user1Id);
+//            appUser1.setEmail("ivan4o_gotininq@abv.bg");
+//            appUser1.setPassword(passwordEncoder.encode("aA1234!"));
+//            appUser1.setUsername("iva4o_gt");
+//            appUser1.setFullName("Ivan Gotininq");
+//            appUser1.setFollowers(0L);
+//            appUser1.setFollowing(0L);
+//            appUser1.setPostsCount(0L);
+//            appUser1.setRole(Role.USER);
+//            appUser1.setLastIssuedTokenRevocation(Instant.now());
+////            user1.setFirstName("Ivan");
+////            user1.setLastName("Georgiev");
+////            user1.setBirthDate(Date.valueOf(LocalDate.of(1990, 10, 5)));
+////            user1.setPhoneNumber("359885554545");
+////            user1.setCountryCode("359");
+////            user1.setFollowers(0L);
+////            user1.setFollowing(0L);
+////            user1.setIsEmailValidated(true);
+////            user1.setIsPhoneNumberValidated(true);
+////            user1.setRoles(List.of(userRole));
+//            userRepository.save(appUser1)
+//                    .subscribe(u -> log.info(">>>>>>>>>>>user1 saved successfully"));
+//
+////            userRole.getUsers().add(user1);
+////            roleRepository.save(userRole);
+//        }
+//
+//        {
+//            AppUser appUser2 = new AppUser();
+//            appUser2.setId(user2Id);
+//            appUser2.setEmail("petar_petrov33@gmail.com");
+//            appUser2.setPassword(passwordEncoder.encode("bB1234!"));
+//            appUser2.setUsername("petar_p02");
+//            appUser2.setFullName("Petar Petrov");
+//            appUser2.setFollowers(0L);
+//            appUser2.setFollowing(0L);
+//            appUser2.setPostsCount(0L);
+//            appUser2.setRole(Role.USER);
+//            appUser2.setLastIssuedTokenRevocation(Instant.now());
+////            user2.setFirstName("Petar");
+////            user2.setLastName("Petrov");
+////            user2.setBirthDate(Date.valueOf(LocalDate.of(2000, 11, 6)));
+////            user2.setPhoneNumber("359883771111");
+////            user2.setCountryCode("359");
+////            user2.setFollowers(0L);
+////            user2.setFollowing(0L);
+////            user2.setIsEmailValidated(true);
+////            user2.setIsPhoneNumberValidated(false);
+////            user2.setRoles(List.of(userRole));
+//            userRepository.save(appUser2)
+//                    .subscribe(u -> log.info(">>>>>>>>>>>user2 saved successfully"));
+//            ;
+//
+////            userRole.getUsers().add(user2);
+////            roleRepository.save(userRole);
+//        }
+//
+//        {
+//            AppUser appUser3 = new AppUser();
+////            appUser3.setId(user3Id);
+//            appUser3.setEmail("izdislav_kostov7@abv.bg");
+//            appUser3.setPassword(passwordEncoder.encode("aA1234!"));
+//            appUser3.setUsername("iz_dis_lav");
+//            appUser3.setFullName("Iz Dislav");
+//            appUser3.setFollowers(0L);
+//            appUser3.setFollowing(0L);
+//            appUser3.setPostsCount(0L);
+//            appUser3.setRole(Role.USER);
+//            appUser3.setLastIssuedTokenRevocation(Instant.now());
+//
+////            user3.setFirstName("Izdislav");
+////            user3.setLastName("Kostov");
+////            user3.setBirthDate(Date.valueOf(LocalDate.of(2002, 12, 7)));
+////            user3.setPhoneNumber("359887878877");
+////            user3.setCountryCode("359");
+////            user3.setFollowers(0L);
+////            user3.setFollowing(0L);
+////            user3.setIsEmailValidated(false);
+////            user3.setIsPhoneNumberValidated(false);
+////            user3.setRoles(List.of(adminRole));
+//            userRepository.save(appUser3)
+//                    .subscribe(u -> log.info(">>>>>>>>>>>user3 saved successfully"));
+//            ;
+//
+////            adminRole.getUsers().add(user3);
+////            roleRepository.save(userRole);
+//        }
+//        log.info("Users loaded successfully");
+//    }
 
 //    private void loadRoles() {
 //        createRoleIfNotFound(RoleType.ANONYMOUS);

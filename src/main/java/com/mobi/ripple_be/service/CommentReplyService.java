@@ -45,6 +45,10 @@ public class CommentReplyService implements Authorable {
                         COMMENT_REPLIES_PAGE_SIZE)
                 .mapNotNull(commentReplyView ->
                         conversionService.convert(commentReplyView, CommentReplyModel.class)
+                )
+                .flatMap( replyModel -> isReplyLiked(UUID.fromString(replyModel.getId()))
+                        .doOnNext(replyModel::setLikedByUser)
+                        .thenReturn(replyModel)
                 );
     }
 
@@ -67,7 +71,7 @@ public class CommentReplyService implements Authorable {
                 }).map(postComment -> true);
     }
 
-    @PreAuthorize("@commentReplyService.isAuthorOf(#replyId)")
+    @PreAuthorize("@commentReplyService.isAuthorized(#replyId)")
     public Mono<Boolean> editCommentReply(String commentId, String replyId, CommentReplyModel replyModel) {
         return commentReplyRepository
                 .findById(UUID.fromString(replyId))
@@ -79,7 +83,7 @@ public class CommentReplyService implements Authorable {
     }
 
     //TODO: test
-    @PreAuthorize("@commentReplyService.isAuthorOf(#replyId)")
+    @PreAuthorize("@commentReplyService.isAuthorized(#replyId)")
     public Mono<Boolean> deleteCommentReply(String postId, String commentId, String replyId) {
 
         return replyLikeRepository.deleteByParentReplyId(UUID.fromString(replyId))
@@ -122,10 +126,20 @@ public class CommentReplyService implements Authorable {
     }
 
     @Override
-    public Mono<Boolean> isAuthorOf(String replyId) {
+    public Mono<Boolean> isAuthorized(String replyId) {
         return AuthPrincipalProvider.getAuthenticatedUserIdMono()
                 .flatMap(userId -> commentReplyRepository.findById(UUID.fromString(replyId))
                         .map(commentReply -> commentReply.getAuthorId().toString().equals(userId))
                 );
+    }
+
+    private Mono<Boolean> isReplyLiked(UUID replyId) {
+        return AuthPrincipalProvider.getAuthenticatedUserUUIDMono()
+                .flatMap(userId -> replyLikeRepository
+                        .findByAuthorIdAndParentReplyId(
+                                userId,
+                                replyId
+                        )
+                ).hasElement();
     }
 }

@@ -4,6 +4,6 @@ import reactor.core.publisher.Mono;
 
 public interface Authorable {
 
-    Mono<Boolean> isAuthorOf(String objectId);
+    Mono<Boolean> isAuthorized(String objectId);
 
 }

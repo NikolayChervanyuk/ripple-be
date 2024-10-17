@@ -3,12 +3,16 @@ package com.mobi.ripple_be.chat.websocket.util;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.mobi.ripple_be.chat.entity.mongo.Message;
-import com.mobi.ripple_be.chat.entity.mongo.PendingMessageUser;
+import com.mobi.ripple_be.chat.entity.mongo.PendingMessagesUsers;
+import com.mobi.ripple_be.chat.entity.postgres.Chat;
 import com.mobi.ripple_be.chat.entity.postgres.ChatUser;
+import com.mobi.ripple_be.chat.entity.postgres.ChatsMessages;
 import com.mobi.ripple_be.chat.exception.UnresolvedMessageException;
 import com.mobi.ripple_be.chat.repository.mongo.MessageRepository;
-import com.mobi.ripple_be.chat.repository.mongo.PendingMessageUserRepository;
+import com.mobi.ripple_be.chat.repository.mongo.PendingMessagesUsersRepository;
+import com.mobi.ripple_be.chat.repository.postgres.ChatRepository;
 import com.mobi.ripple_be.chat.repository.postgres.ChatUserRepository;
+import com.mobi.ripple_be.chat.repository.postgres.ChatsMessagesRepository;
 import com.mobi.ripple_be.chat.websocket.dto.GenericMessageDTO;
 import com.mobi.ripple_be.chat.websocket.dto.content.*;
 import com.mobi.ripple_be.chat.websocket.dto.contentdto.NewMessageContentDTO;
@@ -49,9 +53,11 @@ public class ChatMessageResolver {
 
     private final ChatObjectMapper chatObjectMapper;
     private final MessageRepository messageRepository;
-    private final PendingMessageUserRepository pendingMessageUserRepository;
+    private final PendingMessagesUsersRepository pendingMessagesUsersRepository;
     private final UserRepository userRepository;
     private final ChatUserRepository chatUserRepository;
+    private final ChatRepository chatRepository;
+    private final ChatsMessagesRepository chatsMessagesRepository;
 
     public ResolvedMessage resolve(WebSocketMessage webSocketMessage) {
         try (InputStream chatMessageStream = webSocketMessage.getPayload().asInputStream()) {
@@ -152,7 +158,7 @@ public class ChatMessageResolver {
                         .flatMap(userView -> {
                             var foundUserSession = sessionHashMap.get(userView.getId());
                             if (foundUserSession == null) {
-                                return pendingMessageUserRepository.save(PendingMessageUser.builder()
+                                return pendingMessagesUsersRepository.save(PendingMessagesUsers.builder()
                                         .userId(userView.getId().toString())
                                         .msgId(storedMessage.getMsgId())
                                         .build()
@@ -184,8 +190,19 @@ public class ChatMessageResolver {
             } catch (IllegalAccessException e) {
                 throw new ApplicationException("Can't invoke 'getChatId' method'");
             }
-
         }
+
+//        public static String getChatIdFromMessage(Message message) {
+//            return switch (message.getMessageContent()) {
+//                case ChatCreatedContent chatCreatedContent -> chatCreatedContent.getChatId();
+//                case ChatOpenedContent chatOpenedContent -> chatOpenedContent.getChatId();
+//                case NewMessageContent newMessageContent -> newMessageContent.getChatId();
+//                case NewParticipantContent newParticipantContent -> newParticipantContent.getChatId();
+//                case ParticipantLeftContent participantLeftContent -> participantLeftContent.getChatId();
+//                case ParticipantRemovedContent participantRemovedContent -> participantRemovedContent.getChatId();
+//                default -> throw new UnresolvedMessageException();
+//            };
+//        }
 
         @SneakyThrows
         private DataBuffer getBufferWithJsonMessage(Message messageToSerialize) throws JsonProcessingException {
@@ -207,18 +224,24 @@ public class ChatMessageResolver {
                     (actionArguments) -> {
                         final NewMessageDTO message = (NewMessageDTO) actionArguments.messageDTO;
                         final NewMessageContentDTO content = message.getContent();
-                        return messageRepository.save(Message.builder()
-                                .eventType(ChatEventType.NEW_MESSAGE)
-                                .sentDate(Instant.now())
-                                .messageContent(NewMessageContent.builder()
-                                        .senderId(actionArguments.senderId.toString())
-                                        .chatId(content.getChatId())
-                                        .message(content.getMessage())
-                                        .fileName(content.getFileName())
-                                        .fileExtension(content.getFileName() != null ? content.getFileExtension() : null)
-                                        .build()
-                                ).build()
-                        );
+                        return updateChatLastSentTime(content.getChatId())
+                                .flatMap(chat -> messageRepository.save(Message.builder()
+                                                        .eventType(ChatEventType.NEW_MESSAGE)
+                                                        .sentDate(chat.getLastSentTime())
+                                                        .messageContent(NewMessageContent.builder()
+                                                                .senderId(actionArguments.senderId.toString())
+                                                                .chatId(content.getChatId())
+                                                                .message(content.getMessage())
+                                                                .fileName(content.getFileName())
+                                                                .fileExtension(content.getFileName() != null ?
+                                                                        content.getFileExtension() : null)
+                                                                .build()
+                                                        ).build()
+                                                )
+                                                .flatMap(msg -> storeChatsMessages(chat.getId(), msg.getMsgId())
+                                                        .thenReturn(msg)
+                                                )
+                                );
                     }
             );
             storeActions.put(ChatEventType.CHAT_OPENED,
@@ -239,15 +262,19 @@ public class ChatMessageResolver {
             storeActions.put(ChatEventType.CHAT_CREATED,
                     (actionArguments) -> {
                         final ChatCreatedDTO message = (ChatCreatedDTO) actionArguments.messageDTO;
-                        return messageRepository.save(Message.builder()
-                                .eventType(ChatEventType.CHAT_CREATED)
-                                .sentDate(Instant.now())
-                                .messageContent(
-                                        ChatCreatedContent.builder()
-                                                .creatorId(actionArguments.senderId.toString())
-                                                .chatId(message.getContent().getChatId())
-                                                .build()
-                                ).build()
+                        return updateChatLastSentTime(message.getContent().getChatId()).flatMap(chat ->
+                                messageRepository.save(Message.builder()
+                                        .eventType(ChatEventType.CHAT_CREATED)
+                                        .sentDate(chat.getLastSentTime())
+                                        .messageContent(
+                                                ChatCreatedContent.builder()
+                                                        .creatorId(actionArguments.senderId.toString())
+                                                        .chatId(message.getContent().getChatId())
+                                                        .build()
+                                        ).build()
+                                ).flatMap(msg -> storeChatsMessages(chat.getId(), msg.getMsgId())
+                                        .thenReturn(msg)
+                                )
                         );
                     }
             );
@@ -261,26 +288,30 @@ public class ChatMessageResolver {
 //                        );
 //                    }
 //            );
-            //TODO: reflect the action on database
             storeActions.put(ChatEventType.NEW_PARTICIPANT,
                     (actionArguments) -> {
                         final NewParticipantDTO message = (NewParticipantDTO) actionArguments.messageDTO;
                         final var content = (NewParticipantContentDTO) message.getContent();
-                        return chatUserRepository.save(
-                                new ChatUser(
-                                        UUID.fromString(content.getChatId()),
-                                        UUID.fromString(content.getParticipantId())
-                                )
-                        ).then(messageRepository.save(Message.builder()
-                                .eventType(ChatEventType.NEW_PARTICIPANT)
-                                .sentDate(Instant.now())
-                                .messageContent(NewParticipantContent.builder()
-                                        .inviterId(actionArguments.senderId.toString())
-                                        .chatId(message.getContent().getChatId())
-                                        .participantId(message.getContent().getParticipantId())
-                                        .build()
-                                ).build()
-                        ));
+                        return updateChatLastSentTime(content.getChatId()).flatMap(chat ->
+                                        chatUserRepository.save(
+                                                new ChatUser(
+                                                        UUID.fromString(content.getChatId()),
+                                                        UUID.fromString(content.getParticipantId())
+                                                )
+                                        ).then(messageRepository.save(Message.builder()
+                                                        .eventType(ChatEventType.NEW_PARTICIPANT)
+//                                        .chatId(chat.getId().toString())
+                                                        .sentDate(chat.getLastSentTime())
+                                                        .messageContent(NewParticipantContent.builder()
+                                                                .inviterId(actionArguments.senderId.toString())
+                                                                .chatId(message.getContent().getChatId())
+                                                                .participantId(message.getContent().getParticipantId())
+                                                                .build()
+                                                        ).build()
+                                        ).flatMap(msg -> storeChatsMessages(chat.getId(), msg.getMsgId())
+                                                .thenReturn(msg)
+                                        ))
+                        );
                     }
             );
             storeActions.put(ChatEventType.PARTICIPANT_LEFT,
@@ -288,20 +319,23 @@ public class ChatMessageResolver {
                         final ParticipantLeftDTO message = (ParticipantLeftDTO) actionArguments.messageDTO;
                         final var content = (ParticipantLeftContentDTO) message.getContent();
 
-                        return AuthPrincipalProvider.getAuthenticatedUserUUIDMono()
-                                .flatMap(userId ->
+                        return AuthPrincipalProvider.getAuthenticatedUserUUIDMono().flatMap(userId ->
+                                updateChatLastSentTime(content.getChatId()).flatMap(chat ->
                                         chatUserRepository
                                                 .deleteByChatIdAndUserId(UUID.fromString(content.getChatId()), userId)
                                                 .then(messageRepository.save(Message.builder()
                                                         .eventType(ChatEventType.PARTICIPANT_LEFT)
-                                                        .sentDate(Instant.now())
+                                                        .sentDate(chat.getLastSentTime())
                                                         .messageContent(ParticipantLeftContent.builder()
                                                                 .participantId(actionArguments.senderId.toString())
                                                                 .chatId(message.getContent().getChatId())
                                                                 .build()
                                                         ).build()
+                                                ).flatMap(msg -> storeChatsMessages(chat.getId(), msg.getMsgId())
+                                                        .thenReturn(msg)
                                                 ))
-                                );
+                                )
+                        );
                     }
             );
             storeActions.put(ChatEventType.PARTICIPANT_REMOVED,
@@ -309,22 +343,42 @@ public class ChatMessageResolver {
                         final ParticipantRemovedDTO message = (ParticipantRemovedDTO) actionArguments.messageDTO;
                         final var content = (ParticipantRemovedContentDTO) message.getContent();
 
-                        return chatUserRepository
-                                .deleteByChatIdAndUserId(
-                                        UUID.fromString(content.getChatId()),
-                                        UUID.fromString(content.getRemovedUserId())
-                                ).then(messageRepository.save(Message.builder()
-                                        .eventType(ChatEventType.PARTICIPANT_REMOVED)
-                                        .sentDate(Instant.now())
-                                        .messageContent(ParticipantRemovedContent.builder()
-                                                .chatId(content.getChatId())
-                                                .removerId(actionArguments.senderId.toString())
-                                                .removedParticipantId(content.getRemovedUserId())
-                                                .build()
-                                        ).build()
-                                ));
+                        return updateChatLastSentTime(content.getChatId()).flatMap(chat ->
+                                chatUserRepository
+                                        .deleteByChatIdAndUserId(
+                                                UUID.fromString(content.getChatId()),
+                                                UUID.fromString(content.getRemovedUserId())
+                                        ).then(messageRepository.save(Message.builder()
+                                                .eventType(ChatEventType.PARTICIPANT_REMOVED)
+                                                .sentDate(chat.getLastSentTime())
+                                                .messageContent(ParticipantRemovedContent.builder()
+                                                        .chatId(content.getChatId())
+                                                        .removerId(actionArguments.senderId.toString())
+                                                        .removedParticipantId(content.getRemovedUserId())
+                                                        .build()
+                                                ).build()
+                                        ).flatMap(msg -> storeChatsMessages(chat.getId(), msg.getMsgId())
+                                                .thenReturn(msg)
+                                        ))
+                        );
                     }
             );
         }
+
+        private Mono<Chat> updateChatLastSentTime(String chatId) {
+            return chatRepository.findChatById(UUID.fromString(chatId))
+                    .doOnNext(chat -> chat.setLastSentTime(Instant.now()))
+                    .flatMap(chatRepository::save);
+        }
+
+        private Mono<ChatsMessages> storeChatsMessages(UUID chatId, String msgId) {
+            return chatsMessagesRepository.save(
+                    ChatsMessages.builder()
+                            .chatId(chatId)
+                            .msgId(msgId)
+                            .build()
+            );
+        }
+
     }
 }

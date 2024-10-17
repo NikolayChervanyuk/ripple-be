@@ -12,6 +12,8 @@ public interface ChatUserRepository extends R2dbcRepository<ChatUser, UUID> {
 
     Flux<ChatUser> findAllByChatId(UUID chatId);
 
+    Mono<ChatUser> findByChatIdAndUserId(UUID chatId, UUID userId);
+
     @Modifying
     Mono<Boolean> deleteByChatIdAndUserId(UUID chatId, UUID userId);
 }

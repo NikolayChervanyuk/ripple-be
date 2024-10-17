@@ -50,6 +50,14 @@ public interface UserRepository extends R2dbcRepository<AppUser, UUID> {
             "LIMIT 16")
     Flux<AppUserView> findAppUserViewsByUsername(String username);
 
+    @Query("SELECT * " +
+            "FROM app_user AS u " +
+            "LEFT JOIN user_following AS uf ON uf.user_id = u.id " +
+            "WHERE u.full_name ILIKE :fullName || '%' " +
+            "ORDER BY (uf.following_id IS NOT NULL) DESC , u.followers DESC " +
+            "LIMIT 16")
+    Flux<AppUserView> findAppUserViewsByFullName(String fullName);
+
     @Modifying
     @Query("UPDATE app_user SET last_issued_token_revocation = current_timestamp WHERE username = $1")
     Mono<Boolean> issueTokenRevocationForUser(String username);

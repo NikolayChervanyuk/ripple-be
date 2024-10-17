@@ -15,4 +15,5 @@ public class SimpleChatParticipantsResponse {
     private String username;
     private boolean isActive;
     private Instant lastActive;
+    private byte[] smallProfilePicture;
 }

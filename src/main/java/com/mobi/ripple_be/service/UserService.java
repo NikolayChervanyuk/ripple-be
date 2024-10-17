@@ -85,31 +85,34 @@ public class UserService {
                 .flatMap(user -> userRepository.issueTokenRevocationForUser(user.getUsername()));
     }
 
-    public Flux<AppUserModel> findUsersLikeUsername(@NotNull final String username) {
-        return userRepository.findAppUserViewsByUsername(username)
+    public Flux<AppUserModel> findUsersLike(final String fullName, final String username) {
+        Flux<AppUserModel> fullNameFlux = Flux.empty();
+        if (fullName != null && !fullName.isEmpty()) {
+            fullNameFlux = userRepository.findAppUserViewsByFullName(fullName)
                 .mapNotNull(userView -> conversionService.convert(userView, AppUserModel.class))
-                .flatMap(userModel -> isUserFollowed(UUID.fromString(userModel.getId()))
-                        .doOnNext(userModel::setFollowed)
-                        .thenReturn(userModel)
-                );
+                .flatMap(this::setIsUserFollowed);
+        }
+
+        Flux<AppUserModel> usernameFlux = Flux.empty();
+        if(username != null && !username.isEmpty()) {
+            usernameFlux = userRepository.findAppUserViewsByUsername(username)
+                    .mapNotNull(userView -> conversionService.convert(userView, AppUserModel.class))
+                    .flatMap(this::setIsUserFollowed);
+        }
+
+        return Flux.merge(fullNameFlux, usernameFlux).distinct(AppUserModel::getId);
     }
 
     public Mono<AppUserModel> getAppUserModelByUsername(@NotNull final String username) {
         return userRepository.getAppUserViewByUsername(username)
                 .mapNotNull(userView -> conversionService.convert(userView, AppUserModel.class))
-                .flatMap(userModel -> isUserFollowed(UUID.fromString(userModel.getId()))
-                        .doOnNext(userModel::setFollowed)
-                        .thenReturn(userModel)
-                );
+                .flatMap(this::setIsUserFollowed);
     }
 
     public Mono<AppUserModel> getAppUserModelById(UUID userId) {
         return userRepository.getAppUserViewById(userId)
                 .mapNotNull(userView -> conversionService.convert(userView, AppUserModel.class))
-                .flatMap(userModel -> isUserFollowed(UUID.fromString(userModel.getId()))
-                        .doOnNext(userModel::setFollowed)
-                        .thenReturn(userModel)
-                );
+                .flatMap(this::setIsUserFollowed);
     }
 
     public Mono<UserPersistenceStatus> saveUser(@NotNull final AppUserModel userModel) {
@@ -319,17 +322,17 @@ public class UserService {
                 );
     }
 
-    private Mono<Boolean> isUserFollowed(UUID userToFollow) {
+    private Mono<AppUserModel> setIsUserFollowed(AppUserModel userModel) {
         return AuthPrincipalProvider
                 .getAuthenticatedUserUUIDMono()
                 .flatMap(authUserId -> userFollowingRepository
                         .findByUserIdAndFollowingId(
                                 authUserId,
-                                userToFollow
+                                UUID.fromString(userModel.getId())
                         )
-                )
-                .map(v -> true)
-                .defaultIfEmpty(false);
+                ).hasElement()
+                .doOnNext(userModel::setFollowed)
+                .thenReturn(userModel);
     }
 
     private IdentifierType getIdentifierType(@NotNull String identifier) {

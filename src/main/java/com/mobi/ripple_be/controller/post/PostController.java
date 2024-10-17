@@ -46,6 +46,25 @@ public class PostController {
                 ));
     }
 
+    @GetMapping
+    public Mono<ResponseEntity<RespModelImpl<List<GetPostResponse>>>> getUserPosts(
+            @RequestParam(name = "authorId") UUID authorId,
+            @RequestParam(name = "page") int page
+    ) {
+        return postService.getUserPosts(authorId, page)
+                .mapNotNull(postModel -> conversionService.convert(postModel, GetPostResponse.class))
+                .collectList()
+                .map(postResponse -> ResponseEntity.ok(RespModelImpl.of(postResponse)))
+                .defaultIfEmpty(new ResponseEntity<>(
+                        RespModelImpl.ofError("This user has no posts yet"),
+                        HttpStatus.NOT_FOUND
+                ))
+                .onErrorReturn(new ResponseEntity<>(
+                        RespModelImpl.serviceUnavailableError(),
+                        HttpStatus.INTERNAL_SERVER_ERROR
+                ));
+    }
+
     @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public Mono<ResponseEntity<RespModelImpl<Boolean>>> savePost(
             @RequestPart("image") Mono<FilePart> image,

@@ -9,7 +9,8 @@ import lombok.*;
 @AllArgsConstructor
 @NoArgsConstructor
 public class NewMessageContentDTO implements MessageContentDTO {
-
+    @NotNull
+    private String senderId;
     @NotNull
     private String chatId;
     private String message;

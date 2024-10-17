@@ -2,7 +2,7 @@ package com.mobi.ripple_be.chat.websocket.util;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.mobi.ripple_be.chat.repository.mongo.MessageRepository;
-import com.mobi.ripple_be.chat.repository.mongo.PendingMessageUserRepository;
+import com.mobi.ripple_be.chat.repository.mongo.PendingMessagesUsersRepository;
 import com.mobi.ripple_be.repository.UserRepository;
 import com.mobi.ripple_be.util.AuthPrincipalProvider;
 import lombok.AllArgsConstructor;
@@ -27,7 +27,7 @@ public class ChatMessageManagerV2 implements ChatManager {
     private final ChatObjectMapper chatObjectMapper;
     private final UserRepository userRepository;
     private final MessageRepository messageRepository;
-    private final PendingMessageUserRepository pendingMessageUserRepository;
+    private final PendingMessagesUsersRepository pendingMessagesUsersRepository;
 
     private final ChatMessageResolver chatMessageResolver;
 
@@ -36,6 +36,7 @@ public class ChatMessageManagerV2 implements ChatManager {
 
     @Override
     public Mono<Void> registerUserSession(WebSocketSession session) {
+        log.info("New user connected to websocket");
         return AuthPrincipalProvider.getAuthenticatedUserUUIDMono()
                 .flatMap(userId -> sessionInitialization(session, userId)
                         .then(session.send(getAnyPendingMessages(session, userId)))
@@ -63,7 +64,7 @@ public class ChatMessageManagerV2 implements ChatManager {
     }
 
     private Flux<WebSocketMessage> getAnyPendingMessages(WebSocketSession session, UUID userId) {
-        return pendingMessageUserRepository.findByUserId(userId.toString())
+        return pendingMessagesUsersRepository.findByUserId(userId.toString())
                 .flatMap(pendingMessageUser -> messageRepository
                         .findById(pendingMessageUser.getMsgId())
                         .publishOn(Schedulers.boundedElastic())
@@ -75,7 +76,7 @@ public class ChatMessageManagerV2 implements ChatManager {
                                 sink.error(new RuntimeException(e));
                                 return;
                             }
-                            pendingMessageUserRepository.delete(pendingMessageUser).subscribe();
+                            pendingMessagesUsersRepository.delete(pendingMessageUser).subscribe();
                             sink.next(session.textMessage(messageJson));
                         })
                         .cast(WebSocketMessage.class)
@@ -83,6 +84,7 @@ public class ChatMessageManagerV2 implements ChatManager {
     }
 
     private Mono<Void> sessionFinalization(UUID userId) {
+        log.info("User disconnected");
         return userRepository.findById(userId)
                 .flatMap(user -> {
                     sessions.remove(userId);

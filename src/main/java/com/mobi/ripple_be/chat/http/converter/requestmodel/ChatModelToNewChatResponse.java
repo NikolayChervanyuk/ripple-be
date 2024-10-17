@@ -11,6 +11,9 @@ public class ChatModelToNewChatResponse extends BaseConverter<ChatModel, NewChat
     public NewChatResponse convert(ChatModel source) {
         return NewChatResponse.builder()
                 .chatId(source.getId())
+                .chatName(source.getName())
+                .createDate(source.getCreatedDate())
+                .chatPicture(null) //TODO
                 .build();
     }
 }
