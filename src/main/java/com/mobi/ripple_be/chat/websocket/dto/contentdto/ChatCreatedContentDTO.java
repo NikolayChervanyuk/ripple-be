@@ -12,4 +12,6 @@ public class ChatCreatedContentDTO implements MessageContentDTO {
     private String creatorId;
     @NotNull
     private String chatId;
+
+    private String chatName;
 }

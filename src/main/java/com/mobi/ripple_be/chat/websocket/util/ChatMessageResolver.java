@@ -27,6 +27,7 @@ import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.core.convert.ConversionService;
 import org.springframework.core.io.buffer.DataBuffer;
 import org.springframework.core.io.buffer.DataBufferFactory;
 import org.springframework.core.io.buffer.DefaultDataBufferFactory;
@@ -58,6 +59,7 @@ public class ChatMessageResolver {
     private final ChatUserRepository chatUserRepository;
     private final ChatRepository chatRepository;
     private final ChatsMessagesRepository chatsMessagesRepository;
+    private final ConversionService conversionService;
 
     public ResolvedMessage resolve(WebSocketMessage webSocketMessage) {
         try (InputStream chatMessageStream = webSocketMessage.getPayload().asInputStream()) {
@@ -166,12 +168,12 @@ public class ChatMessageResolver {
                             } else {
                                 if (!userView.getId().equals(senderId)) {
                                     try {
-                                        return foundUserSession.send(Mono.just(
-                                                new WebSocketMessage(
-                                                        WebSocketMessage.Type.TEXT,
-                                                        getBufferWithJsonMessage(storedMessage)
+                                        return foundUserSession.send(Mono.just(new WebSocketMessage(
+                                                WebSocketMessage.Type.TEXT,
+                                                getBufferWithJsonMessage(
+                                                        conversionService.convert(storedMessage, GenericMessageDTO.class)
                                                 )
-                                        ));
+                                        )));
                                     } catch (JsonProcessingException e) {
                                         return Flux.error(new RuntimeException(e));
                                     }
@@ -205,7 +207,7 @@ public class ChatMessageResolver {
 //        }
 
         @SneakyThrows
-        private DataBuffer getBufferWithJsonMessage(Message messageToSerialize) throws JsonProcessingException {
+        private DataBuffer getBufferWithJsonMessage(GenericMessageDTO messageToSerialize) throws JsonProcessingException {
             //TODO: Make more readable
             //TODO: when client sends new massage, it should create the file via http POST request,
             // then in new message should be stored the name of the file, so when connected users

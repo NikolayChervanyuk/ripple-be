@@ -3,11 +3,13 @@ package com.mobi.ripple_be.chat.websocket.util;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.mobi.ripple_be.chat.repository.mongo.MessageRepository;
 import com.mobi.ripple_be.chat.repository.mongo.PendingMessagesUsersRepository;
+import com.mobi.ripple_be.chat.websocket.dto.GenericMessageDTO;
 import com.mobi.ripple_be.repository.UserRepository;
 import com.mobi.ripple_be.util.AuthPrincipalProvider;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.core.convert.ConversionService;
 import org.springframework.stereotype.Component;
 import org.springframework.web.reactive.socket.WebSocketMessage;
 import org.springframework.web.reactive.socket.WebSocketSession;
@@ -33,6 +35,7 @@ public class ChatMessageManagerV2 implements ChatManager {
 
     @Getter
     private final HashMap<UUID, WebSocketSession> sessions = new HashMap<>();
+    private final ConversionService conversionService;
 
     @Override
     public Mono<Void> registerUserSession(WebSocketSession session) {
@@ -71,7 +74,9 @@ public class ChatMessageManagerV2 implements ChatManager {
                         .handle((message, sink) -> {
                             String messageJson;
                             try {
-                                messageJson = chatObjectMapper.writeValueAsString(message);
+                                messageJson = chatObjectMapper.writeValueAsString(
+                                        conversionService.convert(message, GenericMessageDTO.class)
+                                );
                             } catch (JsonProcessingException e) {
                                 sink.error(new RuntimeException(e));
                                 return;
@@ -84,9 +89,9 @@ public class ChatMessageManagerV2 implements ChatManager {
     }
 
     private Mono<Void> sessionFinalization(UUID userId) {
-        log.info("User disconnected");
         return userRepository.findById(userId)
                 .flatMap(user -> {
+                    log.info("User disconnected");
                     sessions.remove(userId);
                     user.setActive(false);
                     user.setLastActive(Instant.now());
